@@ -22,6 +22,7 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          glow: "hsl(var(--primary-glow))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -47,6 +48,12 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        chat: {
+          user: "hsl(var(--chat-user))",
+          "user-foreground": "hsl(var(--chat-user-foreground))",
+          ai: "hsl(var(--chat-ai))",
+          "ai-foreground": "hsl(var(--chat-ai-foreground))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -57,6 +64,20 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+      },
+      backgroundImage: {
+        'gradient-primary': 'var(--gradient-primary)',
+        'gradient-background': 'var(--gradient-background)',
+        'gradient-chat': 'var(--gradient-chat)',
+      },
+      boxShadow: {
+        'chat': 'var(--shadow-chat)',
+        'fab': 'var(--shadow-fab)',
+        'card': 'var(--shadow-card)',
+      },
+      transitionTimingFunction: {
+        'chat': 'var(--transition-chat)',
+        'fab': 'var(--transition-fab)',
       },
       borderRadius: {
         lg: "var(--radius)",
