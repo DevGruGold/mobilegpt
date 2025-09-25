@@ -6,6 +6,7 @@ import { ChatMessage as ChatMessageType } from "@/types/chat";
 import { Camera } from "@capacitor/camera";
 import { CameraResultType, CameraSource } from "@capacitor/camera";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Wifi, WifiOff, Settings } from "lucide-react";
@@ -47,7 +48,7 @@ export function ChatInterface() {
     // Add processing message
     const processingMessage: ChatMessageType = {
       id: `processing-${Date.now()}`,
-      content: "Processing your request...",
+      content: "Processing your request with AI...",
       type: "ai",
       timestamp: new Date(),
       isProcessing: true,
@@ -55,25 +56,57 @@ export function ChatInterface() {
 
     setMessages(prev => [...prev, processingMessage]);
 
-    // Simulate AI processing (30-90 seconds as mentioned in requirements)
-    const processingTime = Math.random() * 60000 + 30000; // 30-90 seconds
-    
-    setTimeout(() => {
+    try {
+      // Call Gemini API through secure edge function
+      const { data, error } = await supabase.functions.invoke('gemini-chat', {
+        body: {
+          messages: [{ content, type: 'user' }],
+          image: image
+        }
+      });
+
+      if (error) {
+        throw new Error(error.message || 'Failed to get AI response');
+      }
+
+      const aiResponse = data?.response || "I apologize, but I couldn't process your request at the moment. Please try again.";
+
       setMessages(prev => 
         prev.map(msg => 
           msg.id === processingMessage.id 
             ? {
                 ...msg,
-                content: image 
-                  ? `I can see the image you've shared. This appears to be an interesting photograph. Due to running locally on your device, my analysis capabilities are optimized for efficiency. The image shows various elements that I can help you understand better. What specific aspects would you like me to focus on?`
-                  : `Thanks for your question about "${content}". Running locally on your device, I can provide helpful information while maintaining your privacy. Based on my offline knowledge, I can assist you with this topic. Would you like me to elaborate on any specific aspect?`,
+                content: aiResponse,
                 isProcessing: false,
               }
             : msg
         )
       );
+
+    } catch (error) {
+      console.error('AI Processing Error:', error);
+      
+      // Show error message to user
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.id === processingMessage.id 
+            ? {
+                ...msg,
+                content: `I encountered an error processing your request. ${isOnline ? 'Please try again.' : 'The offline AI model will be available soon.'}`,
+                isProcessing: false,
+              }
+            : msg
+        )
+      );
+
+      toast({
+        title: "AI Processing Error",
+        description: error instanceof Error ? error.message : "Please try again",
+        variant: "destructive",
+      });
+    } finally {
       setIsProcessing(false);
-    }, Math.min(processingTime, 5000)); // Cap at 5 seconds for demo
+    }
   };
 
   const handleCameraClick = async () => {
