@@ -2,15 +2,27 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Settings, Download, HardDrive, Smartphone } from "lucide-react";
+import { Settings, HardDrive, Smartphone } from "lucide-react";
 
 interface SettingsPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  modelStatus: 'idle' | 'downloading' | 'ready' | 'error';
+  downloadProgress: number;
+  modelError: string | null;
 }
 
-export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
+export function SettingsPanel({ isOpen, onClose, modelStatus, downloadProgress, modelError }: SettingsPanelProps) {
   if (!isOpen) return null;
+
+  const getStatusBadge = () => {
+    switch (modelStatus) {
+      case 'ready': return <Badge className="bg-green-600">Ready</Badge>;
+      case 'downloading': return <Badge className="bg-yellow-600">Downloading</Badge>;
+      case 'error': return <Badge variant="destructive">Error</Badge>;
+      default: return <Badge variant="secondary">Initializing</Badge>;
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 p-4">
@@ -28,15 +40,18 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
             {/* Model Status */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="font-medium">Gemini Nano Model</h3>
-                <Badge variant="secondary">Ready</Badge>
+                <h3 className="font-medium">TinyLlama 1.1B</h3>
+                {getStatusBadge()}
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>Downloaded</span>
-                  <span>4.2 GB / 4.2 GB</span>
+                  <span>Download Progress</span>
+                  <span>{downloadProgress}%</span>
                 </div>
-                <Progress value={100} className="h-2" />
+                <Progress value={downloadProgress} className="h-2" />
+                {modelError && (
+                  <p className="text-xs text-red-600 mt-2">{modelError}</p>
+                )}
               </div>
             </div>
 
@@ -48,15 +63,13 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>AI Models</span>
-                  <span>4.2 GB</span>
+                  <span>AI Model</span>
+                  <span>~600 MB</span>
                 </div>
                 <div className="flex justify-between text-sm text-muted-foreground">
                   <span>Chat History</span>
-                  <span>12 MB</span>
+                  <span>Local Storage</span>
                 </div>
-                <Progress value={65} className="h-2" />
-                <p className="text-xs text-muted-foreground">65% of available space used</p>
               </div>
             </div>
 
@@ -68,23 +81,20 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <p className="text-muted-foreground">RAM Usage</p>
-                  <p className="font-medium">2.1 GB / 8 GB</p>
+                  <p className="text-muted-foreground">Mode</p>
+                  <p className="font-medium">Browser</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Performance</p>
-                  <p className="font-medium text-green-600">Optimal</p>
+                  <p className="font-medium text-green-600">
+                    {modelStatus === 'ready' ? 'Optimal' : 'Loading'}
+                  </p>
                 </div>
               </div>
             </div>
 
             {/* Action Buttons */}
             <div className="space-y-3 pt-4 border-t">
-              <Button variant="outline" className="w-full" disabled>
-                <Download size={16} className="mr-2" />
-                Update Model (Latest)
-              </Button>
-              
               <Button 
                 onClick={onClose}
                 className="w-full bg-gradient-chat hover:shadow-fab"

@@ -6,10 +6,10 @@ import { ChatMessage as ChatMessageType } from "@/types/chat";
 import { Camera } from "@capacitor/camera";
 import { CameraResultType, CameraSource } from "@capacitor/camera";
 import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { useOfflineAI } from "@/hooks/useOfflineAI";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Wifi, WifiOff, Settings } from "lucide-react";
+import { Settings } from "lucide-react";
 
 export function ChatInterface() {
   const [messages, setMessages] = useState<ChatMessageType[]>([
@@ -21,9 +21,9 @@ export function ChatInterface() {
     }
   ]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isOnline] = useState(false); // Simulating offline mode
   const [showSettings, setShowSettings] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { generate, modelStatus, downloadProgress, error: modelError } = useOfflineAI();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -34,6 +34,19 @@ export function ChatInterface() {
   }, [messages]);
 
   const handleSendMessage = async (content: string, image?: string) => {
+    if (!content.trim() && !image) return;
+
+    if (modelStatus !== 'ready') {
+      toast({
+        title: "Model not ready",
+        description: modelStatus === 'downloading' 
+          ? `Model is downloading: ${downloadProgress}%` 
+          : "Please wait for the AI model to load.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const userMessage: ChatMessageType = {
       id: Date.now().toString(),
       content,
@@ -48,7 +61,7 @@ export function ChatInterface() {
     // Add processing message
     const processingMessage: ChatMessageType = {
       id: `processing-${Date.now()}`,
-      content: "Processing your request with AI...",
+      content: "Thinking...",
       type: "ai",
       timestamp: new Date(),
       isProcessing: true,
@@ -57,26 +70,26 @@ export function ChatInterface() {
     setMessages(prev => [...prev, processingMessage]);
 
     try {
-      // Call Gemini API through secure edge function
-      const { data, error } = await supabase.functions.invoke('gemini-chat', {
-        body: {
-          messages: [{ content, type: 'user' }],
-          image: image
-        }
-      });
+      // Build conversation context
+      const conversationHistory = messages
+        .concat(userMessage)
+        .filter(m => !m.isProcessing)
+        .map(m => `${m.type === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
+        .join('\n');
 
-      if (error) {
-        throw new Error(error.message || 'Failed to get AI response');
-      }
-
-      const aiResponse = data?.response || "I apologize, but I couldn't process your request at the moment. Please try again.";
+      const prompt = `${conversationHistory}\nAssistant:`;
+      
+      const response = await generate(prompt);
+      
+      // Extract only the assistant's response
+      const assistantResponse = response.split('Assistant:').pop()?.trim() || response;
 
       setMessages(prev => 
         prev.map(msg => 
           msg.id === processingMessage.id 
             ? {
                 ...msg,
-                content: aiResponse,
+                content: assistantResponse,
                 isProcessing: false,
               }
             : msg
@@ -86,13 +99,12 @@ export function ChatInterface() {
     } catch (error) {
       console.error('AI Processing Error:', error);
       
-      // Show error message to user
       setMessages(prev => 
         prev.map(msg => 
           msg.id === processingMessage.id 
             ? {
                 ...msg,
-                content: `I encountered an error processing your request. ${isOnline ? 'Please try again.' : 'The offline AI model will be available soon.'}`,
+                content: "I encountered an error processing your request. Please try again.",
                 isProcessing: false,
               }
             : msg
@@ -115,7 +127,7 @@ export function ChatInterface() {
         quality: 90,
         allowEditing: false,
         resultType: CameraResultType.DataUrl,
-        source: CameraSource.Prompt, // Let user choose camera or gallery
+        source: CameraSource.Prompt,
       });
 
       if (image.dataUrl) {
@@ -131,6 +143,24 @@ export function ChatInterface() {
     }
   };
 
+  const getStatusColor = () => {
+    switch (modelStatus) {
+      case 'ready': return 'bg-green-500';
+      case 'downloading': return 'bg-yellow-500';
+      case 'error': return 'bg-red-500';
+      default: return 'bg-gray-500';
+    }
+  };
+
+  const getStatusText = () => {
+    switch (modelStatus) {
+      case 'ready': return 'Ready';
+      case 'downloading': return `Loading ${downloadProgress}%`;
+      case 'error': return 'Error';
+      default: return 'Starting...';
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gradient-background">
       {/* Header */}
@@ -142,9 +172,9 @@ export function ChatInterface() {
           </div>
           
           <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="gap-1">
-              {isOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
-              {isOnline ? "Online" : "Offline"}
+            <Badge variant="secondary" className="gap-2">
+              <div className={`w-2 h-2 rounded-full ${getStatusColor()}`} />
+              {getStatusText()}
             </Badge>
             
             <Button
@@ -179,7 +209,10 @@ export function ChatInterface() {
       {/* Settings Panel */}
       <SettingsPanel 
         isOpen={showSettings} 
-        onClose={() => setShowSettings(false)} 
+        onClose={() => setShowSettings(false)}
+        modelStatus={modelStatus}
+        downloadProgress={downloadProgress}
+        modelError={modelError}
       />
     </div>
   );
