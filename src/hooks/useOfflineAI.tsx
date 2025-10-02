@@ -1,9 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
-import { pipeline, env } from '@huggingface/transformers';
-
-// Configure transformers.js
-env.allowLocalModels = false;
-env.useBrowserCache = true;
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 type ModelStatus = 'idle' | 'downloading' | 'ready' | 'error';
 
@@ -18,59 +13,87 @@ export function useOfflineAI(): UseOfflineAIReturn {
   const [modelStatus, setModelStatus] = useState<ModelStatus>('idle');
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [generator, setGenerator] = useState<any>(null);
+  const worker = useRef<Worker | null>(null);
+  const pendingRequests = useRef<Map<string, (value: any) => void>>(new Map());
 
   useEffect(() => {
-    loadModel();
+    // Create the worker
+    worker.current = new Worker(new URL('../workers/ai.worker.ts', import.meta.url), {
+      type: 'module'
+    });
+
+    // Handle messages from worker
+    const onMessage = (event: MessageEvent) => {
+      const { type, data } = event.data;
+
+      switch (type) {
+        case 'progress':
+          if (data.status === 'progress') {
+            const percent = (data.loaded / data.total) * 100;
+            setDownloadProgress(Math.round(percent));
+          }
+          break;
+
+        case 'ready':
+          setModelStatus('ready');
+          setDownloadProgress(100);
+          break;
+
+        case 'complete':
+          const resolver = pendingRequests.current.get('generate');
+          if (resolver) {
+            resolver(data.text);
+            pendingRequests.current.delete('generate');
+          }
+          break;
+
+        case 'error':
+          setError(data.message);
+          setModelStatus('error');
+          const errorResolver = pendingRequests.current.get('generate');
+          if (errorResolver) {
+            errorResolver(null);
+            pendingRequests.current.delete('generate');
+          }
+          break;
+      }
+    };
+
+    worker.current.addEventListener('message', onMessage);
+
+    // Start loading the model
+    setModelStatus('downloading');
+    worker.current.postMessage({ type: 'load' });
+
+    // Cleanup
+    return () => {
+      worker.current?.removeEventListener('message', onMessage);
+      worker.current?.terminate();
+    };
   }, []);
 
-  const loadModel = async () => {
-    try {
-      setModelStatus('downloading');
-      setError(null);
-
-      const pipe = await pipeline(
-        'text-generation',
-        'Xenova/TinyLlama-1.1B-Chat-v1.0',
-        {
-          progress_callback: (progress: any) => {
-            if (progress.status === 'progress') {
-              const percent = (progress.loaded / progress.total) * 100;
-              setDownloadProgress(Math.round(percent));
-            }
-          }
-        }
-      );
-
-      setGenerator(pipe);
-      setModelStatus('ready');
-      setDownloadProgress(100);
-    } catch (err) {
-      console.error('Failed to load model:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load model');
-      setModelStatus('error');
-    }
-  };
-
   const generate = useCallback(async (prompt: string): Promise<string> => {
-    if (!generator) {
-      throw new Error('Model not loaded');
+    if (!worker.current || modelStatus !== 'ready') {
+      throw new Error('Model not ready');
     }
 
-    try {
-      const result = await generator(prompt, {
-        max_new_tokens: 256,
-        temperature: 0.7,
-        do_sample: true,
-        top_k: 50,
+    return new Promise((resolve, reject) => {
+      pendingRequests.current.set('generate', resolve);
+      
+      worker.current!.postMessage({
+        type: 'generate',
+        data: { prompt }
       });
 
-      return result[0].generated_text;
-    } catch (err) {
-      console.error('Generation error:', err);
-      throw err;
-    }
-  }, [generator]);
+      // Timeout after 30 seconds
+      setTimeout(() => {
+        if (pendingRequests.current.has('generate')) {
+          pendingRequests.current.delete('generate');
+          reject(new Error('Generation timeout'));
+        }
+      }, 30000);
+    });
+  }, [modelStatus]);
 
   return {
     generate,
