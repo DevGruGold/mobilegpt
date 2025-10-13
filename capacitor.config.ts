@@ -1,17 +1,50 @@
 import { CapacitorConfig } from '@capacitor/core';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.a3e0ee1975a441d6991902854c780b02',
-  appName: 'MobileGPT',
+  appId: 'com.mobilegpt.offlineai',
+  appName: 'MobileGPT - Offline AI',
   webDir: 'dist',
+  bundledWebRuntime: false,
   server: {
-    url: 'https://a3e0ee19-75a4-41d6-9919-02854c780b02.lovableproject.com?forceHideBadge=true',
-    cleartext: true
+    androidScheme: 'https',
+    iosScheme: 'https'
   },
   plugins: {
     Camera: {
       permissions: ['camera', 'photos']
+    },
+    Filesystem: {
+      permissions: ['storage']
+    },
+    Preferences: {
+      group: 'MobileGPT'
+    },
+    SplashScreen: {
+      launchShowDuration: 3000,
+      launchAutoHide: true,
+      backgroundColor: '#000000',
+      androidSplashResourceName: 'splash',
+      androidScaleType: 'CENTER_CROP',
+      showSpinner: true,
+      spinnerColor: '#ffffff'
+    },
+    StatusBar: {
+      style: 'DARK'
     }
+  },
+  android: {
+    buildOptions: {
+      keystorePath: undefined,
+      keystoreAlias: undefined,
+      keystoreAliasPassword: undefined,
+      keystorePassword: undefined,
+      releaseType: 'APK'
+    },
+    webContentsDebuggingEnabled: true
+  },
+  ios: {
+    scheme: 'MobileGPT',
+    contentInset: 'automatic'
   }
 };
 
