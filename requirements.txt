@@ -1,15 +1,33 @@
-# AI/ML Libraries
+# Core dependencies
 torch>=2.0.0
-transformers>=4.30.0
-sentencepiece>=0.1.99
-accelerate>=0.20.0
-
-# ONNX Runtime for mobile optimization
+onnx>=1.14.0
 onnxruntime>=1.15.0
-
-# Utilities
 numpy>=1.24.0
-tqdm>=4.65.0
+transformers>=4.30.0
 
 # Mobile optimization
-optimum>=1.12.0
+onnx-simplifier>=0.4.0
+
+# Quantization
+onnxruntime-extensions>=0.9.0
+
+# Utilities
+tqdm>=4.65.0
+pyyaml>=6.0
+logging>=0.5.1.2
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+
+# Optional: TensorFlow Lite support
+# tensorflow>=2.13.0
+# onnx-tf>=1.10.0
+
+# Optional: iOS CoreML support
+# coremltools>=6.3.0
+
+# Development
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.4.0
