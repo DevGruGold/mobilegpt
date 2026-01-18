@@ -1,0 +1,23 @@
+{
+  "supported_models": [
+    "LLaMA (Meta)",
+    "Phi (Microsoft)",
+    "Gemma (Google)",
+    "llama.cpp"
+  ],
+  "frameworks": [
+    "llama.cpp"
+  ],
+  "optimization_techniques": [
+    "Model Quantization",
+    "Mobile Optimization",
+    "Edge Computing"
+  ],
+  "mobile_optimizations": {
+    "quantization": "4-bit and 8-bit support",
+    "batch_size": 1,
+    "max_tokens": 512,
+    "temperature": 0.7
+  },
+  "updated": "2026-01-18T03:21:25.836159"
+}
