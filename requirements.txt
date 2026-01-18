@@ -1,0 +1,15 @@
+# AI/ML Libraries
+torch>=2.0.0
+transformers>=4.30.0
+sentencepiece>=0.1.99
+accelerate>=0.20.0
+
+# ONNX Runtime for mobile optimization
+onnxruntime>=1.15.0
+
+# Utilities
+numpy>=1.24.0
+tqdm>=4.65.0
+
+# Mobile optimization
+optimum>=1.12.0
